@@ -1,0 +1,52 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 25
+    buildToolsVersion "26.0.1"
+    defaultConfig {
+        applicationId "com.haha.gemm"
+        minSdkVersion 18
+        targetSdkVersion 25
+        versionCode 1
+        versionName "1.0"
+        externalNativeBuild {
+            cmake {
+                cppFlags ""
+                cFlags "-std=c11"
+                arguments "-DANDROID_ARM_NEON=TRUE",
+                        "-DANDROID_ABI=armeabi-v7a",
+//                        "-DCMAKE_BUILD_TYPE=Release",
+//                        "-DANDROID_TOOLCHAIN=gcc",
+                        "-DANDROID_STL=c++_static"
+            }
+        }
+        ndk {
+            abiFilters "armeabi-v7a"
+        }
+    }
+
+    signingConfigs {
+        config {
+            keyAlias 'haha'
+            keyPassword 'haha-gemm'
+            storeFile file('./src/main/app-release.jks')
+            storePassword 'haha-gemm'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.config
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path "CMakeLists.txt"
+        }
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+}
