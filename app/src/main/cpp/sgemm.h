@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#define USE_BLIS
+// #define USE_BLIS
 // #define USE_LEVEL_O1
 // #define USE_LEVEL_O2
 #define USE_LEVEL_O3

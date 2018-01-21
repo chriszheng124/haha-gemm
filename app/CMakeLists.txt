@@ -5,7 +5,15 @@ set(CMAKE_VERBOSE_MAKEFILE on)
 enable_language(ASM)
 
 if(CMAKE_SYSTEM_PROCESSOR STREQUAL armv7-a)
-    set(ASM_SOURCE src/main/cpp/sgemm-kernel.s)
+    set(ASM_SOURCE src/main/cpp/sgemm-kernel.S
+                   src/main/cpp/sgemm-kernel-unrolling-O1.S
+                   src/main/cpp/sgemm-kernel-unrolling-O1-4x6.S
+                   src/main/cpp/sgemm-kernel-unrolling-O1-4x6-O2.S
+                   src/main/cpp/sgemm-kernel-unrolling-O1-4x6-O2-pld.S
+                   src/main/cpp/sgemm-kernel-unrolling-O2.S
+                   src/main/cpp/sgemm-kernel-unrolling-O3.S
+                   src/main/cpp/sgemm-kernel-unrolling.S
+                   )
 endif()
 
 link_directories(./libs)

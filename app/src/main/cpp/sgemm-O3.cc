@@ -2,7 +2,6 @@
 #include "utils.h"
 #include "blksize.h"
 
-
 using namespace HahaGemm;
 
 static float PACKED_A[MC*KC] __attribute__((aligned(64)));
@@ -10,35 +9,28 @@ static float PACKED_B[KC*NC] __attribute__((aligned(64)));
 static float REGISTER_BLOCK_C[MR*NR] __attribute__((aligned(64)));
 
 
-extern void sgemm_micro_kernel(
-        int kc,
-        float alpha,
-        const float* a,
-        const float* b,
-        float beta,
-        float* c,
-        int inc_row_c,
-        int inc_col_c);
+#define DECLARE_FUNC(_FUNC_NAME)\
+    extern "C" void _FUNC_NAME(\
+        int kc,\
+        float alpha,\
+        const float* a,\
+        const float* b,\
+        float beta,\
+        float* c,\
+        int inc_row_c,\
+        int inc_col_c);\
 
-extern void sgemm_micro_kernel_4x4_O1(
-        int kc,
-        float alpha,
-        const float* a,
-        const float* b,
-        float beta,
-        float* c,
-        int inc_row_c,
-        int inc_col_c);
-
-extern void sgemm_micro_kernel_4x4_O2(
-        int kc,
-        float alpha,
-        const float* a,
-        const float* b,
-        float beta,
-        float* c,
-        int inc_row_c,
-        int inc_col_c);
+DECLARE_FUNC(sgemm_micro_kernel_neon_unrolling_O3)
+DECLARE_FUNC(sgemm_micro_kernel_neon_unrolling_4x6_O2)
+DECLARE_FUNC(sgemm_micro_kernel_neon_unrolling_4x6_O2_pld)
+DECLARE_FUNC(sgemm_micro_kernel_neon_unrolling_O2)
+DECLARE_FUNC(sgemm_micro_kernel_neon_unrolling_O1)
+DECLARE_FUNC(sgemm_micro_kernel_neon_unrolling)
+DECLARE_FUNC(sgemm_micro_kernel_neon_unrolling_4x6)
+DECLARE_FUNC(sgemm_micro_kernel_neon)
+DECLARE_FUNC(sgemm_micro_kernel)
+DECLARE_FUNC(sgemm_micro_kernel_4x4_O1)
+DECLARE_FUNC(sgemm_micro_kernel_4x4_O2)
 
 static void sgemm_micro_kernel_wrapper(
         int kc,
@@ -50,8 +42,16 @@ static void sgemm_micro_kernel_wrapper(
         int inc_row_c,
         int inc_col_c){
     // sgemm_micro_kernel_4x4_O2(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
-    sgemm_micro_kernel_4x4_O1(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
+    // sgemm_micro_kernel_4x4_O1(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
     // sgemm_micro_kernel(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
+    // sgemm_micro_kernel_neon(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
+    // sgemm_micro_kernel_neon_unrolling(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
+    // sgemm_micro_kernel_neon_unrolling_O1(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
+    // sgemm_micro_kernel_neon_unrolling_O2(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
+    // sgemm_micro_kernel_neon_unrolling_O3(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
+    // sgemm_micro_kernel_neon_unrolling_4x6(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
+    // sgemm_micro_kernel_neon_unrolling_4x6_O2(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
+    sgemm_micro_kernel_neon_unrolling_4x6_O2_pld(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
 }
 
 static void sgemm_macro_block(int mc,
@@ -61,8 +61,7 @@ static void sgemm_macro_block(int mc,
                    float  beta,
                    float  *c,
                    int     inc_row_c,
-                   int     inc_col_c)
-{
+                   int     inc_col_c){
     int mp = (mc+MR-1) / MR;
     int np = (nc+NR-1) / NR;
 

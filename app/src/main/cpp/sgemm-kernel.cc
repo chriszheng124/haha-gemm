@@ -48,7 +48,7 @@ void sgemm_micro_kernel(
 
     //
     //  Update C <- C + alpha*AB (note: the case alpha==0.0 was already treated in
-    //                                  the above layer dgemm_nn)
+    //                                  the above layer )
     //
     if (alpha == 1.0) {
         for (j = 0; j < NR; ++j) {
