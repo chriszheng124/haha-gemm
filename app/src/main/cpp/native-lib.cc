@@ -5,16 +5,16 @@
 #include "utils.h"
 #include "sgemm.h"
 #include "log-streambuffer.h"
+#include "test-data-factory.h"
 #include "include/blis/blis.h"
 
 using namespace HahaGemm;
 
 LogStreamBuffer g_logBuffer;
 
-
 jint JNI_OnLoad(JavaVM* vm, void* reserved){
     std::cout.rdbuf(&g_logBuffer);
-#ifdef USE_BLIS
+#if defined(USE_BLIS)||defined(VERIFY_RESULT)
     bli_init();
 #endif
 
@@ -30,7 +30,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved){
 }
 
 void JNI_UnLoad(JavaVM* vm, void* reserved){
-#ifdef USE_BLIS
+#if defined(USE_BLIS)||defined(VERIFY_RESULT)
     bli_finalize();
 #endif
 }
@@ -44,61 +44,75 @@ Java_com_haha_gemm_MainActivity_stringFromJNI(
     return env->NewStringUTF(hello.c_str());
 }
 
-void init_c(float* c, int len){
-    for(int i = 0; i < len; ++i){
-        c[i] = 0;
-    }
-}
-
 extern "C" void
 Java_com_haha_gemm_MainActivity_testGemm(JNIEnv* env, jobject object){
+#ifdef VERIFY_RESULT 
+    int matric_count = 1;
+    int m = 8;
+    int n = 8;
+    int k = 8;
+#else 
     int matric_count = 20;
     int m = 512;
     int n = 512;
     int k = 512;
-    int lda = m;
-    int ldb = k;
-    int ldc = m;
 
-    float alpha = 2.0;
-    float beta = 3.0;
+    int m_outer = m;//1024;
+    int n_outer = n;//720;
+    int k_outer = k;//720;
+#endif 
+    int lda = m_outer;
+    int ldb = k_outer;
+    int ldc = m_outer;
 
-    float* a =  new float[m*k];
-    float* b = new float[k*n];
-    float* c = new float[m*n];
+    float alpha = 1.0;
+    float beta = 1.0;
 
-#ifdef USE_BLIS
-    init_c(c, m*n);
+    TestDataFactory data_factory(10, m_outer, n_outer, k_outer);
+
+    float* a;
+    float* b;
+    float* c;
+
+#if defined(USE_BLIS)||defined(VERIFY_RESULT)
     for(int i = 0; i < matric_count; ++i){
-        Utils::MakeMatRandomly(a, m, k);
-        //Utils::PrintMat(a, m, k, lda);
+        a = data_factory.GetA();
+        b = data_factory.GetB();
+        c = data_factory.GetC();
 
-        Utils::MakeMatRandomly(b, k, n);
-        //Utils::PrintMat(b, k, n, ldb);
-        
         long current_time = Utils::GetCurrentTimeMs();
 
         bli_sgemm(BLIS_NO_TRANSPOSE, BLIS_NO_TRANSPOSE, m, n, k, &alpha, a, 1, lda,
                 b, 1, ldb, &beta, c, 1, ldc, NULL);
 
         std::cout<<"blis Using time : "<<Utils::GetCurrentTimeMs() - current_time <<std::endl;
-        // Utils::PrintMat(c, m, n, ldc);
-    }
-#else  
-    init_c(c, m*n);
-    for(int i = 0; i < matric_count; ++i){
-        Utils::MakeMatRandomly(a, m, k);
-        //Utils::PrintMat(a, m, k, lda);
-
-        Utils::MakeMatRandomly(b, k, n);
-        //Utils::PrintMat(b, k, n, ldb);
-        
-        sgemm(false, false, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
-        // Utils::PrintMat(c, m, n, ldc);
+#ifdef VERIFY_RESULT 
+        Utils::PrintMat(c, m, n, ldc);
+#else
+        data_factory.FreeA(a);
+        data_factory.FreeB(b);
+        data_factory.FreeC(c);
+#endif 
     }
 #endif 
-    delete[] c;
-    delete[] a;
-    delete[] b;
+
+#if defined(USE_LEVEL_O3)||defined(USE_LEVEL_O1)||defined(VERIFY_RESULT) 
+    for(int i = 0; i < matric_count; ++i){
+#ifndef VERIFY_RESULT 
+        a = data_factory.GetA();
+        b = data_factory.GetB();
+        c = data_factory.GetC();
+#else 
+        memset(c, 0, sizeof(float)*m*n);
+#endif
+        sgemm(false, false, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
+#ifdef VERIFY_RESULT 
+        Utils::PrintMat(c, m, n, ldc);
+#endif
+        data_factory.FreeA(a);
+        data_factory.FreeB(b);
+        data_factory.FreeC(c);
+    }
+#endif 
 }
 

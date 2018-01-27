@@ -1,6 +1,6 @@
 #include "blksize.h"
 
-void sgemm_micro_kernel(
+extern "C" void sgemm_micro_kernel(
         int kc,
         float alpha,
         const float* a,

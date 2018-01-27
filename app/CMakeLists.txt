@@ -9,9 +9,12 @@ if(CMAKE_SYSTEM_PROCESSOR STREQUAL armv7-a)
                    src/main/cpp/sgemm-kernel-unrolling-O1.S
                    src/main/cpp/sgemm-kernel-unrolling-O1-4x6.S
                    src/main/cpp/sgemm-kernel-unrolling-O1-4x6-O2.S
+                   src/main/cpp/sgemm-kernel-unrolling-O1-4x6-O2.S
                    src/main/cpp/sgemm-kernel-unrolling-O1-4x6-O2-pld.S
                    src/main/cpp/sgemm-kernel-unrolling-O2.S
                    src/main/cpp/sgemm-kernel-unrolling-O3.S
+                   src/main/cpp/sgemm-kernel-neon-4x4.S
+                   src/main/cpp/sgemm-kernel-4x4-pld.S
                    src/main/cpp/sgemm-kernel-unrolling.S
                    )
 endif()

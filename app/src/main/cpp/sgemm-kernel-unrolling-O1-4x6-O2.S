@@ -10,10 +10,10 @@
 #define R_INC_COL_C r5
 
 #define R_L r6
-#define MR #4
-#define NR #4
-#define UNROLL_BLK_SIZE #4
 #define R_TMP r7
+#define R_TMP_1 r8
+#define R_TMP_2 r9
+#define R_TMP_3 r10
 
 #define R_B_ROW_1 q1
 #define R_B_ROW_2 q2
@@ -43,10 +43,10 @@
 
         .arm
         .text
-        .align  5
-        .global sgemm_micro_kernel_neon_unrolling_4x6_O2 
+        .align  4
+        .global sgemm_micro_kernel_neon_unrolling_4x6_Os 
 
-sgemm_micro_kernel_neon_unrolling_4x6_O2:
+sgemm_micro_kernel_neon_unrolling_4x6_Os:
         push {r4 - r11}
         vpush {q1 - q8}
         vpush {q9 - q15}
@@ -56,7 +56,26 @@ sgemm_micro_kernel_neon_unrolling_4x6_O2:
 
         cmp R_KC, #0
         beq sgemm_kernel_end 
+        
+        pld [R_A]
+        ldr R_INC_COL_C, INC_COL_C 
+        pld [R_B]
+        pld [R_B, #64]
+        lsl R_INC_COL_C, R_INC_COL_C, #2
 
+        mov R_TMP, R_C 
+        pld [R_TMP]
+        add R_TMP, R_TMP, R_INC_COL_C 
+        pld [R_TMP]
+        add R_TMP, R_TMP, R_INC_COL_C 
+        pld [R_TMP]
+        add R_TMP, R_TMP, R_INC_COL_C 
+        pld [R_TMP]
+        add R_TMP, R_TMP, R_INC_COL_C 
+        pld [R_TMP]
+        add R_TMP, R_TMP, R_INC_COL_C 
+        pld [R_TMP]
+        
         vmov.f32 R_AB_COL_1, #0.0
         vmov.f32 R_AB_COL_2, #0.0
         vmov.f32 R_AB_COL_3, #0.0
@@ -69,42 +88,45 @@ sgemm_micro_kernel_neon_unrolling_4x6_O2:
         beq compute_ab_residul_loop 
 
 compute_ab_main_loop:
-        vld1.f32 {d0, d1}, [R_B:128]!
-        vld1.f32 {R_A_COL_1}, [R_A:128]!
+        pld [R_A, #64]
+        vld1.f32 {R_A_COL_1, R_A_COL_2}, [R_A]!
+        pld [R_B, #64]
+        pld [R_B, #128]
+        vld1.f32 {d0, d1, d2, d3}, [R_B]! 
 
+        //col_1
         vmla.f32 R_AB_COL_1, R_A_COL_1, d0[0]
         vmla.f32 R_AB_COL_2, R_A_COL_1, d0[1]
-        vld1.f32 {d2, d3}, [R_B:128]!
+        vld1.f32 {d4, d5, d6, d7}, [R_B]!
         vmla.f32 R_AB_COL_3, R_A_COL_1, d1[0]
         vmla.f32 R_AB_COL_4, R_A_COL_1, d1[1]
-        vld1.f32 {R_A_COL_2}, [R_A:128]!
+        vld1.f32 {R_A_COL_3, R_A_COL_4}, [R_A]!
         vmla.f32 R_AB_COL_5, R_A_COL_1, d2[0]
         vmla.f32 R_AB_COL_6, R_A_COL_1, d2[1]
-
-        vld1.f32 {d4, d5}, [R_B:128]!
-
+        
+        vld1.f32 {d8, d9, d10, d11}, [R_B]!
+        
+        //col_2
         vmla.f32 R_AB_COL_1, R_A_COL_2, d3[0]
         vmla.f32 R_AB_COL_2, R_A_COL_2, d3[1]
-        vld1.f32 {d6, d7}, [R_B:128]!
         vmla.f32 R_AB_COL_3, R_A_COL_2, d4[0]
         vmla.f32 R_AB_COL_4, R_A_COL_2, d4[1]
-        vld1.f32 {R_A_COL_3}, [R_A:128]!
         vmla.f32 R_AB_COL_5, R_A_COL_2, d5[0]
         vmla.f32 R_AB_COL_6, R_A_COL_2, d5[1]
-        
-        vld1.f32 {d8, d9}, [R_B:128]!
+
+        //col_3
         vmla.f32 R_AB_COL_1, R_A_COL_3, d6[0]
         vmla.f32 R_AB_COL_2, R_A_COL_3, d6[1]
-        vld1.f32 {R_A_COL_4}, [R_A:128]!
         vmla.f32 R_AB_COL_3, R_A_COL_3, d7[0]
         vmla.f32 R_AB_COL_4, R_A_COL_3, d7[1]
-        vld1.f32 {d10, d11}, [R_B:128]!
         vmla.f32 R_AB_COL_5, R_A_COL_3, d8[0]
         vmla.f32 R_AB_COL_6, R_A_COL_3, d8[1]
         
+        subs R_KC, R_KC, #1
+        
+        //col_4
         vmla.f32 R_AB_COL_1, R_A_COL_4, d9[0]
         vmla.f32 R_AB_COL_2, R_A_COL_4, d9[1]
-        subs R_KC, R_KC, #1
         vmla.f32 R_AB_COL_3, R_A_COL_4, d10[0]
         vmla.f32 R_AB_COL_4, R_A_COL_4, d10[1]
         vmla.f32 R_AB_COL_5, R_A_COL_4, d11[0]
@@ -116,15 +138,16 @@ compute_ab_main_loop:
         beq update_c 
 
 compute_ab_residul_loop:
-        vld1.f32 {d0, d1}, [R_B]!
+        pld [R_A, #64]
         vld1.f32 {R_A_COL_1}, [R_A]!
+        pld [R_B, #64]
+        vld1.f32 {d0, d1, d2}, [R_B]!
 
         vmla.f32 R_AB_COL_1, R_A_COL_1, d0[0]
         vmla.f32 R_AB_COL_2, R_A_COL_1, d0[1]
-        vld1.f32 {d2}, [R_B]!
         vmla.f32 R_AB_COL_3, R_A_COL_1, d1[0]
-        vmla.f32 R_AB_COL_4, R_A_COL_1, d1[1]
         subs R_TMP, R_TMP, #1
+        vmla.f32 R_AB_COL_4, R_A_COL_1, d1[1]
         vmla.f32 R_AB_COL_5, R_A_COL_1, d2[0]
         vmla.f32 R_AB_COL_6, R_A_COL_1, d2[1]
 
@@ -133,12 +156,6 @@ compute_ab_residul_loop:
 update_c:        
         vpop {q0}
 
-        mov R_TMP, #4
-        ldr R_INC_ROW_C, INC_ROW_C
-        mul R_INC_ROW_C, R_INC_ROW_C, R_TMP 
-        ldr R_INC_COL_C, INC_COL_C 
-        mul R_INC_COL_C, R_INC_COL_C, R_TMP 
-        
         mov R_TMP, R_C 
         vld1.f32 {R_C_COL_1}, [R_TMP], R_INC_COL_C  
         vld1.f32 {R_C_COL_2}, [R_TMP], R_INC_COL_C 

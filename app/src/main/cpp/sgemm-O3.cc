@@ -8,7 +8,6 @@ static float PACKED_A[MC*KC] __attribute__((aligned(64)));
 static float PACKED_B[KC*NC] __attribute__((aligned(64)));
 static float REGISTER_BLOCK_C[MR*NR] __attribute__((aligned(64)));
 
-
 #define DECLARE_FUNC(_FUNC_NAME)\
     extern "C" void _FUNC_NAME(\
         int kc,\
@@ -27,10 +26,14 @@ DECLARE_FUNC(sgemm_micro_kernel_neon_unrolling_O2)
 DECLARE_FUNC(sgemm_micro_kernel_neon_unrolling_O1)
 DECLARE_FUNC(sgemm_micro_kernel_neon_unrolling)
 DECLARE_FUNC(sgemm_micro_kernel_neon_unrolling_4x6)
+DECLARE_FUNC(sgemm_micro_kernel_neon_unrolling_4x6_Os)
 DECLARE_FUNC(sgemm_micro_kernel_neon)
 DECLARE_FUNC(sgemm_micro_kernel)
 DECLARE_FUNC(sgemm_micro_kernel_4x4_O1)
 DECLARE_FUNC(sgemm_micro_kernel_4x4_O2)
+DECLARE_FUNC(sgemm_micro_kernel_intrinsic)
+DECLARE_FUNC(sgemm_micro_kernel_neon_4x4)
+DECLARE_FUNC(sgemm_micro_kernel_neon_4x4_pld)
 
 static void sgemm_micro_kernel_wrapper(
         int kc,
@@ -49,9 +52,21 @@ static void sgemm_micro_kernel_wrapper(
     // sgemm_micro_kernel_neon_unrolling_O1(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
     // sgemm_micro_kernel_neon_unrolling_O2(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
     // sgemm_micro_kernel_neon_unrolling_O3(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
+    sgemm_micro_kernel_neon_unrolling_4x6_Os(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
     // sgemm_micro_kernel_neon_unrolling_4x6(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
     // sgemm_micro_kernel_neon_unrolling_4x6_O2(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
-    sgemm_micro_kernel_neon_unrolling_4x6_O2_pld(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
+    // sgemm_micro_kernel_intrinsic(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
+    // sgemm_micro_kernel_neon_4x4(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
+    // sgemm_micro_kernel_neon_4x4_pld(kc, alpha, a, b, beta, c, inc_row_c, inc_col_c);
+}
+
+static void prefetch_range(float* start, int len){
+    int stride = 0;
+    do{
+        // __builtin_prefetch(start + stride, 0, 2);
+        __asm__ __volatile__("pld [%0]"::"r"(start + stride));
+        stride += 64;
+    }while(stride < len);
 }
 
 static void sgemm_macro_block(int mc,

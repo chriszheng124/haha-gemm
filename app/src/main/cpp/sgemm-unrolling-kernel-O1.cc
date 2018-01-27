@@ -20,7 +20,7 @@
         _ARRAY[15] = 0;\
     }while(0)
 
-void sgemm_micro_kernel_4x4_O1(
+extern "C" void sgemm_micro_kernel_4x4_O1(
         int kc,
         float alpha,
         const float* a,
