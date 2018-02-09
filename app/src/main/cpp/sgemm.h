@@ -2,13 +2,7 @@
 #define NEON_SGEMM_H
 
 #include <stdbool.h>
-
-// #define VERIFY_RESULT
-// #define USE_BLIS
-#define USE_LEVEL_O3
-// #define USE_LEVEL_O1
-// #define USE_LEVEL_O2
-
+#include "include/common.h"
 
 void sgemm(
         bool transa,
@@ -45,10 +39,10 @@ void sgemm##_level(\
 
 #ifdef USE_LEVEL_O1
     FUNC_DEF(O1)
-#elif defined(USE_LEVEL_O2) 
-    FUNC_DEF(O2)
 #elif defined(USE_LEVEL_O3)
     FUNC_DEF(O3)
+#elif defined(USE_OMP)
+    FUNC_DEF(OMP)
 #endif 
 
 #endif //NEON_SGEMM_H

@@ -11,11 +11,11 @@ android {
         versionName "1.0"
         externalNativeBuild {
             cmake {
-                cppFlags ""
-                cFlags "-std=c11"
+                cppFlags "-fopenmp"
+                cFlags "-std=c11 -fopenmp"
                 arguments "-DANDROID_ARM_NEON=TRUE",
                         "-DANDROID_ABI=armeabi-v7a",
-//                        "-DCMAKE_BUILD_TYPE=Release",
+                        "-DCMAKE_BUILD_TYPE=Release",
 //                        "-DANDROID_TOOLCHAIN=gcc",
                         "-DANDROID_STL=c++_static"
             }

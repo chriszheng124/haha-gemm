@@ -1,3 +1,6 @@
+#include <omp.h>
+#include <iostream>
+
 #include "sgemm.h"
 #include "utils.h"
 #include "blksize.h"
@@ -6,7 +9,6 @@ using namespace HahaGemm;
 
 static float PACKED_A[MC*KC] __attribute__((aligned(64)));
 static float PACKED_B[KC*NC] __attribute__((aligned(64)));
-static float REGISTER_BLOCK_C[MR*NR] __attribute__((aligned(64)));
 
 #define DECLARE_FUNC(_FUNC_NAME)\
     extern "C" void _FUNC_NAME(\
@@ -68,15 +70,6 @@ static void sgemm_micro_kernel_wrapper(
 #endif 
 }
 
-static void prefetch_range(float* start, int len){
-    int stride = 0;
-    do{
-        // __builtin_prefetch(start + stride, 0, 2);
-        __asm__ __volatile__("pld [%0]"::"r"(start + stride));
-        stride += 64;
-    }while(stride < len);
-}
-
 static void haha_sgemm_macro_block(int mc,
                    int     nc,
                    int     kc,
@@ -91,18 +84,19 @@ static void haha_sgemm_macro_block(int mc,
     int _mr = mc % MR;
     int _nr = nc % NR;
 
-    int mr, nr;
-    int i, j;
-
-    for (j = 0; j < np; ++j) {
-        nr = (j != np-1 || _nr == 0) ? NR : _nr;
-        for (i = 0; i < mp; ++i) {
-            mr = (i != mp-1 || _mr == 0) ? MR : _mr;
+// #pragma omp parallel 
+#pragma omp parallel for// nowait //num_threads(4)
+    for (int j = 0; j < np; ++j) {
+        int nr = (j != np-1 || _nr == 0) ? NR : _nr;
+        for (int i = 0; i < mp; ++i) {
+            int mr = (i != mp-1 || _mr == 0) ? MR : _mr;
             if (mr == MR && nr == NR) {
                 sgemm_micro_kernel_wrapper(kc, alpha, &PACKED_A[i*kc*MR], &PACKED_B[j*kc*NR],
                                    beta, &c[i*MR*inc_row_c+j*NR*inc_col_c],
                                    inc_row_c, inc_col_c);
             } else {
+                float REGISTER_BLOCK_C[MR*NR] __attribute__((aligned(64)));
+                
                 sgemm_micro_kernel_wrapper(kc, alpha, &PACKED_A[i*kc*MR], &PACKED_B[j*kc*NR],
                                    0.0, REGISTER_BLOCK_C, 1, MR);
                 Utils::Scale(mr, nr, beta,
@@ -114,7 +108,7 @@ static void haha_sgemm_macro_block(int mc,
     }
 }
 
-void sgemmO3(
+void sgemmOMP(
         bool transa,
         bool transb,
         int m,
@@ -136,8 +130,7 @@ void sgemmO3(
     int _nc = n % NC;
     int _kc = k % KC;
 
-    int mc, nc, kc;
-    int i, j, l;
+    int nc, kc;
 
     float _beta;
 
@@ -146,18 +139,18 @@ void sgemmO3(
         return;
     }
 
-    for (j = 0; j < nb; ++j) {
+    for (int j = 0; j < nb; ++j) {
         nc = (j != nb-1 || _nc == 0) ? NC : _nc;
 
-        for (l = 0; l < kb; ++l) {
+        for (int l = 0; l < kb; ++l) {
             kc    = (l != kb-1 || _kc == 0) ? KC : _kc;
             _beta = (l == 0) ? beta : 1.0f;
 
             Utils::PackB(kc, nc, &b[l*KC*1+j*NC*ldb], 1, ldb, PACKED_B);
 
-            for (i = 0; i < mb; ++i) {
-                mc = (i != mb-1 || _mc == 0) ? MC : _mc;
-
+            for (int i = 0; i < mb; ++i) {
+                int mc = (i != mb-1 || _mc == 0) ? MC : _mc;
+                
                 Utils::PackA(mc, kc, &a[i*MC*1+l*KC*lda], 1, lda, PACKED_A);
 
                 haha_sgemm_macro_block(mc, nc, kc, alpha, _beta,

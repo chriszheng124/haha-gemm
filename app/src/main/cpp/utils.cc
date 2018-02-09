@@ -3,6 +3,7 @@
 #include <ctime>
 #include <iostream>
 #include <iomanip>
+#include <math.h>
 
 #include "utils.h"
 #include "blksize.h"
@@ -19,8 +20,9 @@ long Utils::GetCurrentTimeMs(){
 void Utils::MakeMatRandomly(float* mat, int m, int n){
     srand((unsigned)time(0));
     int count = m * n;
+    float base = 1.0f/(float)RAND_MAX;
     for(int i = 0; i < count; ++i){
-        mat[i] = rand()/(float)RAND_MAX;
+        mat[i] = (float)rand()*base;
     }
 }
 
@@ -38,6 +40,49 @@ void Utils::PrintMat(float* mat, int m, int n, int ld){
     std::cout<<"\r\n----------------------Mat End-------------------------------"<<std::endl;
 }
 
+std::string Utils::PrintMatToString(float* mat, int m, int n, int ld){
+    std::string ret;
+    char buf[64];
+
+    for(int i = 0; i < m; ++i){
+        for(int j = 0; j < n; ++j){
+            memset(buf, 0, sizeof(buf));
+            sprintf(buf, "%.3f#", mat[i + j * ld]);
+            ret.append(buf);
+        }
+    }
+
+    return std::move(ret);
+}
+
+bool Utils::CompareMat(float* left, float* right, int m, int n, int ld){
+    char left_buf[64];
+    char right_buf[64];
+
+    for(int i = 0; i < m; ++i){
+        for(int j = 0; j < n; ++j){
+            memset(left_buf, 0, sizeof(left_buf));
+            sprintf(left_buf, "%.5f", left[i + j * ld]);
+            std::string left_s(left_buf);
+
+            memset(right_buf, 0, sizeof(right_buf));
+            sprintf(right_buf, "%.5f", right[i + j * ld]);
+            std::string right_s(right_buf);
+            if(left_s.compare(right_s) != 0){
+                std::cout<<"i="<<i<<"  j="<<j<<" ld="<<ld<<" left: "
+                    <<left_s<<"  right:"<<right_s<<std::endl;
+                return false;
+            }
+
+//            float diff = fabs(left[i + j * ld] - right[i + j * ld]);
+//            if(diff > FLT_EPSILON){
+//                return false;
+//            }
+        }
+    }
+    return true;
+}
+
 void Utils::PackA(int mc, int kc, const float* a,
         int inc_row, int inc_col, float* buffer){
     int mp  = mc / MR;
@@ -47,6 +92,7 @@ void Utils::PackA(int mc, int kc, const float* a,
 
     for (i = 0; i < mp; ++i) {
         PackMRxK(kc, a, inc_row, inc_col, buffer);
+        // PackMRxK_4x4(kc, a, inc_row, inc_col, buffer);
         buffer += kc * MR;
         a      += MR * inc_row;
     }
@@ -103,6 +149,24 @@ void Utils::PackMRxK(int k, const float* a,
     }
 }
 
+// must be column-major order,that is inc_row == 1
+void Utils::PackMRxK_4x4(int k, const float* a, 
+        int inc_row, int inc_col, float* buffer){
+    int j;
+
+    for (j = 0; j < k; ++j) {
+        __asm__ __volatile__("pld [%0]"::"r"(a + inc_col));
+        __asm__ __volatile__("pld [%0]"::"r"(buffer + 128));
+        buffer[0] = a[0];
+        buffer[1] = a[1];
+        buffer[2] = a[2];
+        buffer[3] = a[3];
+        
+        buffer += 4;
+        a      += inc_col;
+    }
+}
+
 void Utils::PackKxNR(int k, const float* b,
         int inc_row, int inc_col, float* buffer){
     int i, j;
@@ -148,7 +212,7 @@ void Utils::ScaleAdd(int m, int n, float alpha, const float* x,
     } else {
         for (j = 0; j < n; ++j) {
             for (i = 0; i < m; ++i) {
-               y[i* inc_row_y + j * inc_col_y] +=x[i * inc_row_x + j * inc_col_x];
+               y[i* inc_row_y + j * inc_col_y] += x[i * inc_row_x + j * inc_col_x];
             }
         }
     }

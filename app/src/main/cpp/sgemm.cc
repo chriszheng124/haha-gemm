@@ -1,5 +1,4 @@
 #include <iostream>
-
 #include "sgemm.h"
 #include "utils.h"
 
@@ -22,11 +21,14 @@ void sgemm(
     long current_time = Utils::GetCurrentTimeMs();
 #ifdef USE_LEVEL_O1
     sgemmO1(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
-#elif defined(USE_LEVEL_O2) 
-    sgemmO2(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
 #elif defined(USE_LEVEL_O3) 
     sgemmO3(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
+#elif defined(USE_OMP)
+    sgemmOMP(transa, transb, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
 #endif
-    std::cout<<"Gemm-O3 Using time : "<<Utils::GetCurrentTimeMs() - current_time <<std::endl;
+
+#ifndef VERIFY_RESULT 
+    std::cout<<"Gemm Using time : "<<Utils::GetCurrentTimeMs() - current_time <<std::endl;
+#endif 
 }
 

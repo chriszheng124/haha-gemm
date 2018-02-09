@@ -1,4 +1,3 @@
-#include "sgemm.h"
 
 void sgemmO1(
         bool transa,
@@ -22,7 +21,7 @@ void sgemmO1(
             for(int p = 0; p < k; ++p){
                 ab += a[p * lda + i] * b[b_start + p];
             }
-            c[c_pos] += (beta * c[c_pos] + alpha * ab); 
+            c[c_pos] = (beta * c[c_pos] + alpha * ab);
         }
     }
 }

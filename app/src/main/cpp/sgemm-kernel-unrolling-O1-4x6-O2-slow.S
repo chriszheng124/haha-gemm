@@ -44,9 +44,9 @@
         .arm
         .text
         .align  4
-        .global sgemm_micro_kernel_neon_unrolling_4x6_Os 
+        .global sgemm_micro_kernel_neon_unrolling_4x6_slow 
 
-sgemm_micro_kernel_neon_unrolling_4x6_Os:
+sgemm_micro_kernel_neon_unrolling_4x6_slow:
         push {r4 - r11}
         vpush {q1 - q8}
         vpush {q9 - q15}
@@ -89,45 +89,46 @@ sgemm_micro_kernel_neon_unrolling_4x6_Os:
 
 compute_ab_main_loop:
         pld [R_A, #64]
-        vld1.f32 {R_A_COL_1, R_A_COL_2}, [R_A]!
         pld [R_B, #64]
         pld [R_B, #128]
+        
+        vld1.f32 {R_A_COL_1, R_A_COL_2}, [R_A]!
+        vld1.f32 {R_A_COL_3, R_A_COL_4}, [R_A]!
         vld1.f32 {d0, d1, d2, d3}, [R_B]! 
+        vld1.f32 {d4, d5, d6, d7}, [R_B]!
+        vld1.f32 {d8, d9, d10, d11}, [R_B]!
 
         vmla.f32 R_AB_COL_1, R_A_COL_1, d0[0]
-        vmla.f32 R_AB_COL_2, R_A_COL_1, d0[1]
-        vld1.f32 {d4, d5, d6, d7}, [R_B]!
-        vmla.f32 R_AB_COL_3, R_A_COL_1, d1[0]
-        vmla.f32 R_AB_COL_4, R_A_COL_1, d1[1]
-        vld1.f32 {R_A_COL_3, R_A_COL_4}, [R_A]!
-        vmla.f32 R_AB_COL_5, R_A_COL_1, d2[0]
-        vmla.f32 R_AB_COL_6, R_A_COL_1, d2[1]
-        
-        vld1.f32 {d8, d9, d10, d11}, [R_B]!
-        
         vmla.f32 R_AB_COL_1, R_A_COL_2, d3[0]
-        vmla.f32 R_AB_COL_2, R_A_COL_2, d3[1]
-        vmla.f32 R_AB_COL_3, R_A_COL_2, d4[0]
-        vmla.f32 R_AB_COL_4, R_A_COL_2, d4[1]
-        vmla.f32 R_AB_COL_5, R_A_COL_2, d5[0]
-        vmla.f32 R_AB_COL_6, R_A_COL_2, d5[1]
-
         vmla.f32 R_AB_COL_1, R_A_COL_3, d6[0]
-        vmla.f32 R_AB_COL_2, R_A_COL_3, d6[1]
-        vmla.f32 R_AB_COL_3, R_A_COL_3, d7[0]
-        vmla.f32 R_AB_COL_4, R_A_COL_3, d7[1]
-        vmla.f32 R_AB_COL_5, R_A_COL_3, d8[0]
-        vmla.f32 R_AB_COL_6, R_A_COL_3, d8[1]
-        
-        subs R_KC, R_KC, #1
-        
         vmla.f32 R_AB_COL_1, R_A_COL_4, d9[0]
+        
+        vmla.f32 R_AB_COL_2, R_A_COL_1, d0[1]
+        vmla.f32 R_AB_COL_2, R_A_COL_2, d3[1]
+        vmla.f32 R_AB_COL_2, R_A_COL_3, d6[1]
         vmla.f32 R_AB_COL_2, R_A_COL_4, d9[1]
+        
+        vmla.f32 R_AB_COL_3, R_A_COL_1, d1[0]
+        vmla.f32 R_AB_COL_3, R_A_COL_2, d4[0]
+        vmla.f32 R_AB_COL_3, R_A_COL_3, d7[0]
         vmla.f32 R_AB_COL_3, R_A_COL_4, d10[0]
+        
+        vmla.f32 R_AB_COL_4, R_A_COL_1, d1[1]
+        vmla.f32 R_AB_COL_4, R_A_COL_2, d4[1]
+        vmla.f32 R_AB_COL_4, R_A_COL_3, d7[1]
         vmla.f32 R_AB_COL_4, R_A_COL_4, d10[1]
+        
+        vmla.f32 R_AB_COL_5, R_A_COL_1, d2[0]
+        vmla.f32 R_AB_COL_5, R_A_COL_2, d5[0]
+        vmla.f32 R_AB_COL_5, R_A_COL_3, d8[0]
         vmla.f32 R_AB_COL_5, R_A_COL_4, d11[0]
+        
+        vmla.f32 R_AB_COL_6, R_A_COL_1, d2[1]
+        vmla.f32 R_AB_COL_6, R_A_COL_2, d5[1]
+        vmla.f32 R_AB_COL_6, R_A_COL_3, d8[1]
         vmla.f32 R_AB_COL_6, R_A_COL_4, d11[1]
         
+        subs R_KC, R_KC, #1
         bne compute_ab_main_loop 
 
         cmp R_TMP, #0

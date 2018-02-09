@@ -1,6 +1,7 @@
 #ifndef GEMM_UTILS_H
 #define GEMM_UTILS_H
 
+#include <string>
 #include "include/common.h"
 
 HAHA_GEMM_BEGIN
@@ -8,8 +9,12 @@ HAHA_GEMM_BEGIN
 class Utils{
 public:
     static long GetCurrentTimeMs();
+
     static void MakeMatRandomly(float* mat, int m, int n);
     static void PrintMat(float* mat, int m, int n, int ld);
+    
+    static std::string PrintMatToString(float* mat, int m, int n, int ld);
+    static bool CompareMat(float* left, float* right, int m, int n, int ld);
 
     static void PackA(int mc, int kc, const float* a,
             int inc_row, int inc_col, float* buffer);
@@ -24,6 +29,8 @@ public:
 
 private:
     static void PackMRxK(int k, const float* a, 
+            int inc_row, int inc_col, float* buffer);
+    static void PackMRxK_4x4(int k, const float* a, 
             int inc_row, int inc_col, float* buffer);
     static void PackKxNR(int k, const float* b,
             int inc_row, int inc_col, float* buffer);

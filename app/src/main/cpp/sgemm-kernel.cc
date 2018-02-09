@@ -1,6 +1,7 @@
+#include <cstring>
 #include "blksize.h"
 
-extern "C" void sgemm_micro_kernel(
+extern "C" void haha_sgemm_micro_kernel(
         int kc,
         float alpha,
         const float* a,
@@ -16,9 +17,8 @@ extern "C" void sgemm_micro_kernel(
     //
     //  Compute AB = A*B
     //
-    for (l = 0; l < MR*NR; ++l) {
-        ab[l] = 0;
-    }
+    memset(ab, 0, sizeof(float)*MR*NR);
+
     for (l = 0; l < kc; ++l) {
         for (j = 0; j < NR; ++j) {
             for (i = 0; i < MR; ++i) {

@@ -53,7 +53,7 @@ private:
         return len;
     }  
 private:
-    static const int BUFFER_SIZE = 4096;
+    static const int BUFFER_SIZE = 256;
     char buf_[BUFFER_SIZE];
 };
 
