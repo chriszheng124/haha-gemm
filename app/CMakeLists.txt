@@ -51,6 +51,7 @@ target_link_libraries( # Specifies the target library.
                        libomp.a
                        libblis.a
                        libm_hard.a
+                       libOpenCL.so
                        ${log-lib} )
 
 

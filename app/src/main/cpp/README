@@ -1,7 +1,0 @@
-1. check which schedule method openmp uses
-2. prefetch stride tune
-3. register number tune 
-4. prefetch A for multi-core level-2 cache
-5. optimize pack
-
-

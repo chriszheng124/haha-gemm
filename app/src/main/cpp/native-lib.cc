@@ -28,6 +28,10 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved){
     }
     result = JNI_VERSION_1_4;
 
+    long page_size = sysconf(_SC_PAGESIZE);
+    std::cout<<"page size = "<<page_size<<std::endl;
+    std::cout<<"processor num = "<<omp_get_num_procs()<<std::endl;
+
     return result;
 }
 
@@ -35,10 +39,6 @@ void JNI_UnLoad(JavaVM* vm, void* reserved){
 #if defined(USE_BLIS)||defined(VERIFY_RESULT)
     bli_finalize();
 #endif
-}
-
-static void test_00(int i, int j){
-    std::cout<<"i="<<i<<std::endl;
 }
 
 extern "C" jstring
@@ -51,15 +51,6 @@ Java_com_haha_gemm_MainActivity_stringFromJNI(
 
     // verify cache miss rate...
     //sss
-//    omp_set_nested(1);
-//#pragma omp parallel for
-//    for(int i = 0; i < 2; ++i){
-//        int a = i;
-//        for(int j = 0; j < 2; ++j){
-//            test_00(i, a);
-//        }
-//    }
-
     return env->NewStringUTF(hello.c_str());
 }
 
@@ -74,10 +65,10 @@ Java_com_haha_gemm_MainActivity_testGemm(JNIEnv* env, jobject object){
     float* blis_result;
 
 #else
-    int matric_count = 1000;
+    int matric_count = 500;
     int m = 512;
     int n = 512;
-    int k = 512;
+    int k = 1000;
 #endif 
     int m_outer = m;//1024;
     int n_outer = n;//720;

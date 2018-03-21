@@ -1,3 +1,5 @@
+#include <sched.h>
+#include <unistd.h>
 #include <omp.h>
 #include <iostream>
 
@@ -84,8 +86,7 @@ static void haha_sgemm_macro_block(int mc,
     int _mr = mc % MR;
     int _nr = nc % NR;
 
-// #pragma omp parallel 
-#pragma omp parallel for// nowait //num_threads(4)
+#pragma omp parallel for 
     for (int j = 0; j < np; ++j) {
         int nr = (j != np-1 || _nr == 0) ? NR : _nr;
         for (int i = 0; i < mp; ++i) {
@@ -138,6 +139,27 @@ void sgemmOMP(
         Utils::Scale(m, n, beta, c, 1, ldc);
         return;
     }
+
+#ifdef ENABLE_SET_AFFINITY
+    int core_count = omp_get_num_procs();
+    omp_set_num_threads(core_count);
+#pragma omp parallel for 
+    for(int i = 0; i < core_count; ++i){
+        cpu_set_t mask;
+        CPU_ZERO(&mask);
+        if(-1 == sched_getaffinity(0, sizeof(cpu_set_t), &mask)){
+            std::cout<<"sched_getaffinity failed\n";
+            exit(-1);
+        }
+        
+        CPU_SET(CPU_COUNT(&mask), &mask);
+        if(-1 == sched_setaffinity(0, sizeof(cpu_set_t), &mask)){
+            std::cout<<"i = "<<i<<std::endl;
+            std::cout<<"sched_setaffinity failed errno="<<errno<<std::endl;
+            exit(-1);
+        }
+    }
+#endif 
 
     for (int j = 0; j < nb; ++j) {
         nc = (j != nb-1 || _nc == 0) ? NC : _nc;
