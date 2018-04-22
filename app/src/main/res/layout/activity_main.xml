@@ -19,7 +19,15 @@
         android:text="Hello World!" />
     <Button
         android:id="@+id/id_test_gemm"
-        android:text="TestGemm"
-        android:layout_width="160dp"
-        android:layout_height="60dp" />
+        android:layout_marginTop="20dp"
+        android:text="Test-C"
+        android:layout_width="200dp"
+        android:layout_height="100dp" />
+
+    <Button
+        android:id="@+id/id_test_gpu"
+        android:layout_marginTop="20dp"
+        android:text="Test-G"
+        android:layout_width="200dp"
+        android:layout_height="100dp" />
 </LinearLayout>

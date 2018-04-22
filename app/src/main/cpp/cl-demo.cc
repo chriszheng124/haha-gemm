@@ -7,6 +7,8 @@
 #include <android/log.h>
 #include <time.h>
 #include <malloc.h>
+#include "base/LogUtil.h"
+#include "base/PerfUtil.h"
 
 #define MAX_PLATFORMS_COUNT     16
 #define CL_SUCCEEDED(clErr) CL_SUCCESS==clErr
@@ -36,18 +38,17 @@ cl_device_id* GetDeviceId(cl_platform_id &platform){
         __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG,
                             "max_work_group_size: %d", max_work_group_size);
 
-
         cl_uint max_cu_count = 0;
         status = clGetDeviceInfo(devices[0], CL_DEVICE_MAX_COMPUTE_UNITS,
                                  sizeof(max_cu_count), &max_cu_count, NULL);
         __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG,
                             "max_cu_count: %d", max_cu_count);
 
-        cl_uint max_work_item_count = 0;
+        cl_uint max_work_item_count[3] = {0, 0, 0};
         status = clGetDeviceInfo(devices[0], CL_DEVICE_MAX_WORK_ITEM_SIZES,
                                  sizeof(max_work_item_count), &max_work_item_count, NULL);
         __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG,
-                            "max_work_item_count: %d", max_work_item_count);
+                            "max_work_item_count: %d", max_work_item_count[0]);
 
         cl_ulong max_global_mem_size = 0;
         status = clGetDeviceInfo(devices[0], CL_DEVICE_GLOBAL_MEM_SIZE,
@@ -79,14 +80,15 @@ cl_device_id* GetDeviceId(cl_platform_id &platform){
     return devices;
 }
 
-void addArrays(const int *arrayA, const int *arrayB, const int *Result, int length, const char* kernelCode, float* runTime)
+void addArrays(const int *arrayA, const int *arrayB, const int *Result, int length,
+               const char* kernelCode, float* runTime)
 {
     /*char *kernelCode = "__kernel void vadd(__global const int *a, __global const int *b, __global int *c)"
                                 "{"
                                 "    int gid = get_global_id(0);"
                                 "    c[gid] = a[gid] + b[gid];"
                                 "}";*/
-
+    long start_time;
     cl_platform_id platform = 0;
     cl_device_type clDEviceType = CL_DEVICE_TYPE_GPU; // default
     cl_kernel kernel = 0;
@@ -144,11 +146,14 @@ void addArrays(const int *arrayA, const int *arrayB, const int *Result, int leng
 
     //create context
     __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "create context");
-    cl_context_properties properties[] = {CL_CONTEXT_PLATFORM, (cl_context_properties)platform, (cl_context_properties)NULL};
+    cl_context_properties properties[] = {CL_CONTEXT_PLATFORM, (cl_context_properties)platform,
+                                          (cl_context_properties)NULL};
+
     context = clCreateContextFromType(properties, clDEviceType, NULL, NULL, &clErr);
     if (CL_FAILED(clErr) || 0 == context)
     {
-        __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "clErr: %d - Failed to create context", clErr);
+        __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG,
+                            "clErr: %d - Failed to create context", clErr);
         return;
     }
 
@@ -158,7 +163,8 @@ void addArrays(const int *arrayA, const int *arrayB, const int *Result, int leng
     clErr = clGetContextInfo(context, CL_CONTEXT_DEVICES, sizeof(cl_device_id), &device, NULL);
     if (CL_FAILED(clErr) || 0==device)
     {
-        __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "clErr: %d - Failed to get context info", clErr);
+        __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG,
+                            "clErr: %d - Failed to get context info", clErr);
         clReleaseContext(context);
         return;
     }
@@ -196,7 +202,6 @@ void addArrays(const int *arrayA, const int *arrayB, const int *Result, int leng
     memobjs[2] = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int) * length, NULL, NULL);
         if (memobjs[1] == (cl_mem)0)
         {
-            __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "Failed to create memobjs[2]");
             goto release_mem1;
         }
 
@@ -205,7 +210,6 @@ void addArrays(const int *arrayA, const int *arrayB, const int *Result, int leng
     program = clCreateProgramWithSource(context, 1, (const char**)&kernelCode, NULL, &clErr);
     if (CL_FAILED(clErr) || 0 == program)
     {
-        __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "clErr: %d - Failed to create program", clErr);
         goto release_mem2;
     }
 
@@ -217,19 +221,17 @@ void addArrays(const int *arrayA, const int *arrayB, const int *Result, int leng
         size_t len;
         char buffer[2048];
         clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
-        __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "clErr: %d - Failed to build program\n Log: %s", clErr, buffer);
         goto release_program;
     }
 
     // create the kernel
-    __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "create kernel");
-    kernel = clCreateKernel(program, "vadd", NULL);
+    kernel = clCreateKernel(program, "sum", NULL);
     if (kernel == (cl_kernel)0)
     {
-        __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "clErr: %d - Failed to create kernel", clErr);
         goto release_program;
     }
 
+    start_time = PerfUtil::GetCurrentTimeMs();
     // set the args values
     __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "set the args values");
     clErr = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *) &memobjs[0]);
@@ -240,21 +242,19 @@ void addArrays(const int *arrayA, const int *arrayB, const int *Result, int leng
 
     if (CL_FAILED(clErr))
     {
-        __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "clErr: %d - Failed to set kernel arguments", clErr);
         goto release_all;
     }
 
     clGetKernelWorkGroupInfo(kernel, did[0], CL_KERNEL_WORK_GROUP_SIZE,
                              sizeof(size_t), &kernel_work_group_size, NULL);
-    __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "kernel_work_group_size: %d", kernel_work_group_size);
 
     clGetKernelWorkGroupInfo(kernel, did[0], CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
                              sizeof(size_t), &prefered_work_group_size, NULL);
     __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG,
                         "preferred_work_group_size: %d", prefered_work_group_size);
     // set work-item dimensions
-    global_work_size[0] = length;
-    local_work_size[0]= 128;
+    global_work_size[0] = length/4;
+    local_work_size[0]= kernel_work_group_size;
     // execute kernel
     __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "execute kernel");
     struct timespec tp;
@@ -284,6 +284,7 @@ void addArrays(const int *arrayA, const int *arrayB, const int *Result, int leng
         __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, "clErr: %d - Failed to read output Buffer", clErr);
         goto release_all;
     }
+    LogUtil::V("Sum2 gpu using time %ld", PerfUtil::GetCurrentTimeMs() - start_time);
 
     __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Done!");
 
