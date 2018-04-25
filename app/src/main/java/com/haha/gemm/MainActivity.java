@@ -68,8 +68,10 @@ public class MainActivity extends Activity implements View.OnClickListener{
 
 //            InputStream is = am.open("gemm_naive.cl");
 //            InputStream is = am.open("gemm_tiling.cl");
-//            InputStream is = am.open("gemm_tiling_2.cl");  //error...
+//            InputStream is = am.open("gemm_tiling_vec_image_4x4.cl");
             InputStream is = am.open("gemm_tiling_vec_image_4x8.cl");
+//            InputStream is = am.open("gemm_tiling_vec_all_image_4x8.cl");
+//            InputStream is = am.open("gemm_tiling_vec_image_int_4x8.cl");
 //            InputStream is = am.open("gemm_tiling_vec_4x8.cl");
 //            InputStream is = am.open("gemm_tiling_vec_image_unrolling_4x8.cl");
 

@@ -16,6 +16,8 @@
 #include "base/DataGenerator.h"
 #include "base/PerfUtil.h"
 #include "result-checker.h"
+#include "cl/GEMM2.h"
+#include "cl/GEMM3.h"
 
 
 using namespace HahaGemm;
@@ -87,7 +89,7 @@ Java_com_haha_gemm_MainActivity_testGemm(JNIEnv* env, jobject object){
     float alpha = 1.0;
     float beta = 1.0;
 
-    TestDataFactory data_factory(10, m_outer, n_outer, k_outer);
+    TestDataFactory<float> data_factory(10, m_outer, n_outer, k_outer);
 
     float* a;
     float* b;
@@ -180,14 +182,79 @@ void sumIntArray(JNIEnv* env, jstring kernel_code){
     delete[] c;
 }
 
+void verifyGpuGemm(const char* c_kernel_code){
+    int matric_count = 1;
+    int m = 512;
+    int n = 1024;
+    int k = 1023;
+
+    int m_outer = m;
+    int n_outer = n;
+    int k_outer = k;
+
+    int lda = k_outer;
+    int ldb = n_outer;
+    int ldc = n_outer;
+
+    int alpha = 1;
+    int beta = 0;
+
+    TestDataFactory<int> data_factory(10, m_outer, n_outer, k_outer);
+
+    int* a;
+    int* b;
+    int* c;
+
+//    const char* option = "-cl-fast-relaxed-math";
+    HahaGpu::GEMM2<int, CL_SIGNED_INT32> gemm;
+    gemm.Compile(c_kernel_code, "sgemm", NULL);
+
+    for(int i = 0; i < matric_count; ++i) {
+        a = data_factory.GetA();
+        b = data_factory.GetB();
+        c = data_factory.GetC();
+
+        int* blis_result = new int[m*n];
+        memset(blis_result, 0, sizeof(int)*m*n);
+        // row-major
+        ResultChecker::sgemm_row_major(false, false, m, n, k, alpha, a, lda,
+                                       b, ldb, beta, blis_result, ldc);
+
+        memset(c, 0, sizeof(int)*m*n);
+        bool ret = gemm(false, false, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
+        if(!ret){
+            LogUtil::E("[gpu] sgemm failed");
+        }
+
+        bool result = Utils::CompareMat(blis_result, c, m, n, ldc);
+        if(result){
+            std::cout<<"OK"<<std::endl;
+        }else{
+            std::cout<<"Error"<<std::endl;
+        }
+
+        data_factory.FreeA(a);
+        data_factory.FreeB(b);
+        data_factory.FreeC(c);
+
+        delete[] blis_result;
+    }
+}
+
 extern "C" void
 Java_com_haha_gemm_MainActivity_sgemm(JNIEnv* env, jobject object, jstring kernel_code){
     const char *c_kernel_code = env->GetStringUTFChars(kernel_code, 0);
+//    if(true){
+//        verifyGpuGemm(c_kernel_code);
+//        env->ReleaseStringUTFChars(kernel_code, c_kernel_code);
+//        return;
+//    }
 
-    int matric_count = 500;
+    bool use_blis = true;
+    int matric_count = 1;
     int m = 512;
     int n = 512;
-    int k = 512;
+    int k = 1024;
 
     int m_outer = m;
     int n_outer = n;
@@ -200,15 +267,15 @@ Java_com_haha_gemm_MainActivity_sgemm(JNIEnv* env, jobject object, jstring kerne
     float alpha = 1.0;
     float beta = 0.0;
 
-    TestDataFactory data_factory(10, m_outer, n_outer, k_outer);
+    TestDataFactory<float> data_factory(10, m_outer, n_outer, k_outer);
 
     float* a;
     float* b;
     float* c;
 
-//        const char* option = "-D TS=8";
+//    const char* option = "-D TS=8";
     const char* option = "-cl-fast-relaxed-math";
-    HahaGpu::GEMM gemm;
+    HahaGpu::GEMM2<float> gemm;
     gemm.Compile(c_kernel_code, "sgemm", option);
 
     for(int i = 0; i < matric_count; ++i) {
@@ -216,25 +283,28 @@ Java_com_haha_gemm_MainActivity_sgemm(JNIEnv* env, jobject object, jstring kerne
         b = data_factory.GetB();
         c = data_factory.GetC();
 
-//        float* blis_result = new float[m*n];
-//        memset(blis_result, 0, sizeof(float)*m*n);
+        float* blis_result;
+        if(use_blis){
+            blis_result = new float[m*n];
+            memset(blis_result, 0, sizeof(float)*m*n);
+        }
 
-        long start_time = PerfUtil::GetCurrentTimeMs();
-//
-//        // row-major
-//        bli_sgemm(BLIS_NO_TRANSPOSE, BLIS_NO_TRANSPOSE, m, n, k, &alpha, a, lda, 1,
-//                  b, ldb, 1, &beta, blis_result, ldc, 1, NULL);
-//
-//        LogUtil::V("------------------------------------sgemm [CPU] using time %ld",
-//                   PerfUtil::GetCurrentTimeMs() - start_time);
+        long start_time;
+        if(use_blis){
+            start_time = PerfUtil::GetCurrentTimeMs();
+            // row-major
+            bli_sgemm(BLIS_NO_TRANSPOSE, BLIS_NO_TRANSPOSE, m, n, k, &alpha, a, lda, 1,
+                  b, ldb, 1, &beta, blis_result, ldc, 1, NULL);
+
+            LogUtil::V("------------------------------------sgemm [CPU] using time %ld",
+                   PerfUtil::GetCurrentTimeMs() - start_time);
+        }
 
         memset(c, 0, sizeof(float)*m*n);
 
-//        ResultChecker::sgemm_row_major(false, false, m, n, k, alpha, a, lda,
-//                                       b, ldb, beta, c, ldc);
         start_time = PerfUtil::GetCurrentTimeMs();
 
-        bool ret = gemm.Calc(false, false, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
+        bool ret = gemm(false, false, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
         if(!ret){
             LogUtil::E("[gpu] sgemm failed");
         }
@@ -242,18 +312,22 @@ Java_com_haha_gemm_MainActivity_sgemm(JNIEnv* env, jobject object, jstring kerne
         LogUtil::V("-----------------------------------sgemm [GPU] using time %ld",
                    PerfUtil::GetCurrentTimeMs() - start_time);
 
-//        bool result = Utils::CompareMat(blis_result, c, m, n, ldc);
-//        if(result){
-//            std::cout<<"OK"<<std::endl;
-//        }else{
-//            std::cout<<"Error"<<std::endl;
-//        }
+        if(use_blis){
+            bool result = Utils::CompareMat(blis_result, c, m, n, ldc);
+            if(result){
+                std::cout<<"OK"<<std::endl;
+            }else{
+                std::cout<<"Error"<<std::endl;
+            }
+        }
 
         data_factory.FreeA(a);
         data_factory.FreeB(b);
         data_factory.FreeC(c);
 
-//        delete[] blis_result;
+        if(use_blis){
+            delete[] blis_result;
+        }
     }
 
     env->ReleaseStringUTFChars(kernel_code, c_kernel_code);
@@ -298,3 +372,4 @@ Java_com_haha_gemm_MainActivity_testVectorSum(JNIEnv* env, jobject object, jstri
     delete[] b;
     delete[] c;
 }
+

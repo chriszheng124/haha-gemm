@@ -114,6 +114,16 @@ void CLEngine::GetDeviceInfo() {
     clGetDeviceInfo(device_id_, CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT,
                     sizeof(cl_int), &preferred_vector_width, NULL);
     LogUtil::V("device_preferred_vector_width = %d", preferred_vector_width);
+
+    cl_ulong global_cache_size;
+    clGetDeviceInfo(device_id_, CL_DEVICE_GLOBAL_MEM_CACHE_SIZE,
+                    sizeof(cl_ulong), &global_cache_size, NULL);
+    LogUtil::V("global_mem_cache_size = %lluKB", global_cache_size/1024);
+
+    cl_uint global_cache_line_size;
+    clGetDeviceInfo(device_id_, CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE,
+                    sizeof(cl_uint), &global_cache_line_size, NULL);
+    LogUtil::V("global_mem_cache_line_size = %d", global_cache_line_size);
 }
 
 bool CLEngine::BuildKernel(const char* kernel_code,
@@ -127,12 +137,11 @@ bool CLEngine::BuildKernel(const char* kernel_code,
     }
     error = clBuildProgram(program_, 1, &device_id_, option, NULL, NULL);
     if (CL_FAILED(error)){
-        size_t len;
         char buffer[1024] = {0};
         clGetProgramBuildInfo(program_, device_id_, CL_PROGRAM_BUILD_LOG,
-                              sizeof(buffer), buffer, &len);
+                              sizeof(buffer), buffer, NULL);
 
-        LogUtil::E("build program failed with error info: %s", buffer);
+        LogUtil::E("build program return %d, error info: %s", error, buffer);
         return false;
     }
 

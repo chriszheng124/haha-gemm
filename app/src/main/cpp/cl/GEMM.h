@@ -8,7 +8,8 @@ HAHA_GPU_BEGIN
 
 class GEMM : public CLEngine{
 public:
-    bool Calc(bool transa,
+    bool Calc(
+            bool transa,
             bool transb,
             int m,
             int n,
@@ -20,7 +21,8 @@ public:
             int ldb,
             float beta,
             float* c,
-            int ldc);
+            int ldc
+    );
 
 private:
     void WaitForComplete(cl_event event);

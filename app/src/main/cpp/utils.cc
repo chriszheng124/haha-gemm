@@ -22,7 +22,16 @@ void Utils::MakeMatRandomly(float* mat, int m, int n){
     int count = m * n;
     float base = 1.0f/(float)RAND_MAX;
     for(int i = 0; i < count; ++i){
-        mat[i] = (float)rand()*base;
+        int r = rand() % 5;
+        mat[i] = (float)r*base;
+    }
+}
+
+void Utils::MakeMatRandomly(int* mat, int m, int n){
+    srand((unsigned)time(0));
+    int count = m * n;
+    for(int i = 0; i < count; ++i){
+        mat[i] = rand() % 10;
     }
 }
 
@@ -55,6 +64,19 @@ std::string Utils::PrintMatToString(float* mat, int m, int n, int ld){
     return std::move(ret);
 }
 
+//row-major
+bool Utils::CompareMat(int* left, int* right, int m, int n, int ld){
+    int count = m*n;
+    for(int i = 0; i < count; ++i){
+        if(left[i] != right[i]){
+            std::cout<<"left = "<<left[i]<<" right= " << right[i]<<std::endl;
+            return false;
+        }
+    }
+    return true;
+}
+
+// col-major
 bool Utils::CompareMat(float* left, float* right, int m, int n, int ld){
     char left_buf[64];
     char right_buf[64];

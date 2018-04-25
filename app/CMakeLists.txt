@@ -18,6 +18,8 @@ if(CMAKE_SYSTEM_PROCESSOR STREQUAL armv7-a)
                    src/main/cpp/sgemm-kernel-unrolling.S
                    src/main/cpp/sgemm-kernel-unrolling-4x8.S
 
+                   src/main/cpp/test-data-factory.h
+
                    src/main/cpp/cl/CLEngine.cpp
                    src/main/cpp/cl/MatTranspose.cpp
                    src/main/cpp/cl/VectorSum.cpp
@@ -25,6 +27,8 @@ if(CMAKE_SYSTEM_PROCESSOR STREQUAL armv7-a)
                    src/main/cpp/base/PerfUtil.cpp
                    src/main/cpp/base/DataGenerator.cpp
                    src/main/cpp/cl/GEMM.cpp
+                   src/main/cpp/cl/GEMM2.h
+                   src/main/cpp/cl/GEMM3.h
                    )
 endif()
 

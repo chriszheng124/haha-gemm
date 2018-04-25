@@ -11,10 +11,12 @@ public:
     static long GetCurrentTimeMs();
 
     static void MakeMatRandomly(float* mat, int m, int n);
+    static void MakeMatRandomly(int* mat, int m, int n);
     static void PrintMat(float* mat, int m, int n, int ld);
     
     static std::string PrintMatToString(float* mat, int m, int n, int ld);
     static bool CompareMat(float* left, float* right, int m, int n, int ld);
+    static bool CompareMat(int* left, int* right, int m, int n, int ld);
 
     static void PackA(int mc, int kc, const float* a,
             int inc_row, int inc_col, float* buffer);

@@ -9,7 +9,7 @@ __kernel void sgemm(const __global float* A,
     sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE|
                         CLK_FILTER_NEAREST|
                         CLK_ADDRESS_NONE;
-    const int lda = n;
+    const int lda = k;
     const int ldc = n;
 
     int gx = get_global_id(0);
@@ -32,7 +32,6 @@ __kernel void sgemm(const __global float* A,
         {
             for (int i = 0; i < 4; i++)
             {
-
                 b[i] = read_imagef(Bi, sampler, (int2)(gx, pos + i));
             }
 

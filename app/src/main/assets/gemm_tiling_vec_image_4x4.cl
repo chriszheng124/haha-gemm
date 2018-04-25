@@ -9,7 +9,7 @@ __kernel void sgemm(const __global float* A,
     sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE|
                         CLK_FILTER_NEAREST|
                         CLK_ADDRESS_NONE;
-    const int lda = n;
+    const int lda = k;
     const int ldc = n;
 
     int gx = get_global_id(0);

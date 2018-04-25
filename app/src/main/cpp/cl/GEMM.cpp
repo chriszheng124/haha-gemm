@@ -9,9 +9,8 @@ HAHA_GPU_BEGIN
 #define USE_IMAGE
 #define USE_4X8_BLOCK
 //#define USE_4X4_BLOCK
+
 //#define USE_NAIVE
-
-
 
 bool GEMM::Calc(bool transa,
                 bool transb,
@@ -36,21 +35,39 @@ bool GEMM::Calc(bool transa,
 
     LogUtil::V("kernel_max_work_group_size = %d", kernel_work_group_size);
 
+    int aligned_m = m;
+    int aligned_n = n;
+    int aligned_k = k;
+
+#ifdef USE_4X8_BLOCK
+    aligned_m = m % 8 == 0 ? m : m + 8;
+    aligned_n = n % 4 == 0 ? n : n + 4;
+    aligned_k = k % 4 == 0 ? k : k + 4;
+#endif
+
 #ifdef USE_NAIVE
-    global_work_size[0] = (size_t)m;
+    global_work_size[0] = (size_t)n;
 #else
-    global_work_size[0] = (size_t)m/4;
+    global_work_size[0] = (size_t)aligned_n/4;
 #endif
 
 #ifdef USE_4X8_BLOCK
-    global_work_size[1] = (size_t)n/8;
+    global_work_size[1] = (size_t)aligned_m/8;
 #elif defined(USE_4X4_BLOCK)
-    global_work_size[1] = (size_t)n/4;
+    global_work_size[1] = (size_t)(m + 3)/4;
 #elif defined(USE_NAIVE)
-    global_work_size[1] = (size_t)n;
+    global_work_size[1] = (size_t)m;
 #endif
+
+#ifdef USE_NAIVE
+    local_work_size[0] = 8;
+    local_work_size[1] = 8;
+#else
+//    local_work_size[0] = 16;
+//    local_work_size[1] = 64;
     local_work_size[0] = 4;
     local_work_size[1] = 8;
+#endif
 
     LogUtil::V("work_group_size[0] = %d, work_group_size[1] = %d, "
                "global_work_size[0] = %d, global_work_size[1] = %d",
@@ -69,7 +86,7 @@ bool GEMM::Calc(bool transa,
         start_time = PerfUtil::GetCurrentTimeMs();
 
         arg1 = clCreateBuffer(context_, CL_MEM_READ_ONLY|CL_MEM_ALLOC_HOST_PTR,
-                              m*k*sizeof(float), NULL, NULL);
+                              aligned_m*aligned_k*sizeof(float), NULL, NULL);
         if(arg1 == NULL){
             break;
         }
@@ -78,7 +95,8 @@ bool GEMM::Calc(bool transa,
         image_format.image_channel_order = CL_RGBA;
         image_format.image_channel_data_type = CL_FLOAT;
         arg2 = clCreateImage2D(context_, CL_MEM_READ_ONLY|CL_MEM_ALLOC_HOST_PTR,
-                               &image_format, n/4, k, 0, NULL, NULL);
+                               &image_format, (size_t)aligned_n/4,
+                               (size_t)aligned_k, 0, NULL, NULL);
 #else
         arg2 = clCreateBuffer(context_, CL_MEM_READ_ONLY|CL_MEM_ALLOC_HOST_PTR,
                               n*k*sizeof(float), NULL, NULL);
@@ -87,7 +105,7 @@ bool GEMM::Calc(bool transa,
             break;
         }
         arg3 = clCreateBuffer(context_, CL_MEM_READ_WRITE|CL_MEM_ALLOC_HOST_PTR,
-                              m*n*sizeof(float), NULL, NULL);
+                              aligned_m*aligned_n*sizeof(float), NULL, NULL);
         if(arg3 == NULL){
             break;
         }
@@ -97,13 +115,17 @@ bool GEMM::Calc(bool transa,
 
         start_time = PerfUtil::GetCurrentTimeMs();
         float* arg1_ptr = (float*) clEnqueueMapBuffer(command_queue_, arg1, CL_TRUE, CL_MAP_READ,
-                                                      0, m*k*sizeof(float),
+                                                      0, aligned_m*aligned_k*sizeof(float),
                                                       0, NULL, NULL, &error);
         if(CL_FAILED(error) || arg1_ptr == NULL){
             LogUtil::E("map buffer arg1 failed with error code %d", error);
             break;
         }
-        memcpy(arg1_ptr, a, m*k*sizeof(float));
+        for(int i = 0; i < m; ++i){
+            float* start = arg1_ptr + i * aligned_k;
+            memcpy(start, a + i * k, k * sizeof(float));
+            memset(start + k, 0, (aligned_k - k) * sizeof(float));
+        }
         error = clEnqueueUnmapMemObject(command_queue_, arg1, arg1_ptr, 0, NULL, NULL);
         if(CL_FAILED(error)){
             LogUtil::E("unmap arg1 failed with error code %d", error);
@@ -112,8 +134,8 @@ bool GEMM::Calc(bool transa,
 #ifdef USE_IMAGE
         size_t origin[3] = {0, 0, 0};
         size_t region[3];
-        region[0] = (size_t)n/4;
-        region[1] = (size_t)k;
+        region[0] = (size_t)aligned_n/4;
+        region[1] = (size_t)aligned_k;
         region[2] = 1;
         size_t row_pitch;
         size_t slice_pitch;
@@ -123,7 +145,9 @@ bool GEMM::Calc(bool transa,
 
         int img_ldb = row_pitch/sizeof(float);
         for(int i = 0; i < k; ++i){
-            memcpy(arg2_ptr+i*img_ldb, b+i*n, n*sizeof(float));
+            float* start = arg2_ptr + i * img_ldb;
+            memcpy(start, b + i * n, n * sizeof(float));
+            memset(start + n, 0, (aligned_n - n) * sizeof(float));
         }
 
         LogUtil::V("row_pitch = %d pixels, slice_pitch = %d pixels",
@@ -180,8 +204,18 @@ bool GEMM::Calc(bool transa,
         }
 
         start_time = PerfUtil::GetCurrentTimeMs();
+        float* tmp_c = c;
+        if(m != aligned_m || n != aligned_n){
+            tmp_c = new float[aligned_m * aligned_n];
+        }
         error = clEnqueueReadBuffer(command_queue_, arg3, CL_TRUE, 0,
-                                    m*n*sizeof(float), c, 0, NULL, NULL);
+                                    aligned_m*aligned_n*sizeof(float), tmp_c, 0, NULL, NULL);
+        if(c != tmp_c){
+            for(int i = 0; i < m; ++i){
+                memcpy(c + i * n, tmp_c + i * aligned_n, n);
+            }
+            delete[] tmp_c;
+        }
 
         LogUtil::V("enqueue read buffer using time : %ld",
                    PerfUtil::GetCurrentTimeMs() - start_time);
