@@ -18,6 +18,7 @@
 #include "result-checker.h"
 #include "cl/GEMM2.h"
 #include "cl/GEMM3.h"
+#include "cl/GEMM4.h"
 
 
 using namespace HahaGemm;
@@ -250,10 +251,10 @@ Java_com_haha_gemm_MainActivity_sgemm(JNIEnv* env, jobject object, jstring kerne
 //        return;
 //    }
 
-    bool use_blis = true;
+    bool use_blis = false;
     int matric_count = 1;
-    int m = 512;
-    int n = 512;
+    int m = 1024;
+    int n = 1024;
     int k = 1024;
 
     int m_outer = m;
@@ -275,7 +276,7 @@ Java_com_haha_gemm_MainActivity_sgemm(JNIEnv* env, jobject object, jstring kerne
 
 //    const char* option = "-D TS=8";
     const char* option = "-cl-fast-relaxed-math";
-    HahaGpu::GEMM2<float> gemm;
+    HahaGpu::GEMM2<float, CL_FLOAT, 8, 8> gemm;
     gemm.Compile(c_kernel_code, "sgemm", option);
 
     for(int i = 0; i < matric_count; ++i) {
@@ -307,6 +308,7 @@ Java_com_haha_gemm_MainActivity_sgemm(JNIEnv* env, jobject object, jstring kerne
         bool ret = gemm(false, false, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
         if(!ret){
             LogUtil::E("[gpu] sgemm failed");
+            return;
         }
 
         LogUtil::V("-----------------------------------sgemm [GPU] using time %ld",

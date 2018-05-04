@@ -1,5 +1,5 @@
-#ifndef HAHA_GEMM_GEMM2_H
-#define HAHA_GEMM_GEMM2_H
+#ifndef HAHA_GEMM_GEMM4_H
+#define HAHA_GEMM_GEMM4_H
 
 #include <cstddef>
 #include <cstring>
@@ -9,11 +9,15 @@
 #include "../base/LogUtil.h"
 
 #include "CLEngine.h"
+#include "PackHelper.h"
 
 /*
  * a <-> mem buffer
  * b <-> image buffer
  * c <-> mem buffer
+ *
+ * A packed
+ *
  */
 HAHA_GPU_BEGIN
 
@@ -21,7 +25,7 @@ template<typename T,
         cl_channel_type IMAGE_DATA_TYPE = CL_FLOAT,
         int BLK_SIZE_X = 4,
         int BLK_SIZE_Y = 8>
-class GEMM2 : public CLEngine{
+class GEMM4 : public CLEngine{
 public:
     bool operator()(
             bool transa,
@@ -109,14 +113,8 @@ public:
                 LogUtil::E("map buffer arg1 failed with error code %d", error);
                 break;
             }
-            for(int i = 0; i < m; ++i){
-                T* start = arg1_ptr + i * aligned_k;
-                memcpy(start, a + i * k, k * sizeof(T));
-                memset(start + k, 0, (aligned_k - k) * sizeof(T));
-            }
-            for(int i = m; i < aligned_m; ++i){
-                memset(arg1_ptr + i * aligned_k, 0, aligned_k * sizeof(T));
-            }
+
+            PackHelper<float>::PackA(a, k, k, m, 4, BLK_SIZE_Y, arg1_ptr, aligned_k, aligned_m);
 
             error = clEnqueueUnmapMemObject(command_queue_, arg1, arg1_ptr, 0, NULL, NULL);
             if(CL_FAILED(error)){
@@ -246,4 +244,4 @@ public:
 
 HAHA_GPU_END
 
-#endif //HAHA_GEMM_GEMM2_H
+#endif //HAHA_GEMM_GEMM4_H

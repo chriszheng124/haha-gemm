@@ -7,6 +7,7 @@
 
 #include "utils.h"
 #include "blksize.h"
+#include "base/LogUtil.h"
 
 
 HAHA_GEMM_BEGIN
@@ -22,8 +23,7 @@ void Utils::MakeMatRandomly(float* mat, int m, int n){
     int count = m * n;
     float base = 1.0f/(float)RAND_MAX;
     for(int i = 0; i < count; ++i){
-        int r = rand() % 5;
-        mat[i] = (float)r*base;
+        mat[i] = (float)rand()*base;
     }
 }
 
@@ -64,7 +64,6 @@ std::string Utils::PrintMatToString(float* mat, int m, int n, int ld){
     return std::move(ret);
 }
 
-//row-major
 bool Utils::CompareMat(int* left, int* right, int m, int n, int ld){
     int count = m*n;
     for(int i = 0; i < count; ++i){
@@ -76,34 +75,44 @@ bool Utils::CompareMat(int* left, int* right, int m, int n, int ld){
     return true;
 }
 
-// col-major
 bool Utils::CompareMat(float* left, float* right, int m, int n, int ld){
-    char left_buf[64];
-    char right_buf[64];
-
-    for(int i = 0; i < m; ++i){
-        for(int j = 0; j < n; ++j){
-            memset(left_buf, 0, sizeof(left_buf));
-            sprintf(left_buf, "%.5f", left[i + j * ld]);
-            std::string left_s(left_buf);
-
-            memset(right_buf, 0, sizeof(right_buf));
-            sprintf(right_buf, "%.5f", right[i + j * ld]);
-            std::string right_s(right_buf);
-            if(left_s.compare(right_s) != 0){
-                std::cout<<"i="<<i<<"  j="<<j<<" ld="<<ld<<" left: "
-                    <<left_s<<"  right:"<<right_s<<std::endl;
-                return false;
-            }
-
-//            float diff = fabs(left[i + j * ld] - right[i + j * ld]);
-//            if(diff > FLT_EPSILON){
-//                return false;
-//            }
+    int count = m*n;
+    for(int i = 0; i < count; ++i){
+        if(fabs(left[i] - right[i]) > FLT_EPSILON){
+            LogUtil::V("left = %.4f, right= %.4f", left[i], right[i]);
+            return false;
         }
     }
     return true;
 }
+//// col-major
+//bool Utils::CompareMat(float* left, float* right, int m, int n, int ld){
+//    char left_buf[64];
+//    char right_buf[64];
+//
+//    for(int i = 0; i < m; ++i){
+//        for(int j = 0; j < n; ++j){
+//            memset(left_buf, 0, sizeof(left_buf));
+//            sprintf(left_buf, "%.5f", left[i + j * ld]);
+//            std::string left_s(left_buf);
+//
+//            memset(right_buf, 0, sizeof(right_buf));
+//            sprintf(right_buf, "%.5f", right[i + j * ld]);
+//            std::string right_s(right_buf);
+//            if(left_s.compare(right_s) != 0){
+//                std::cout<<"i="<<i<<"  j="<<j<<" ld="<<ld<<" left: "
+//                    <<left_s<<"  right:"<<right_s<<std::endl;
+//                return false;
+//            }
+//
+////            float diff = fabs(left[i + j * ld] - right[i + j * ld]);
+////            if(diff > FLT_EPSILON){
+////                return false;
+////            }
+//        }
+//    }
+//    return true;
+//}
 
 void Utils::PackA(int mc, int kc, const float* a,
         int inc_row, int inc_col, float* buffer){

@@ -57,13 +57,21 @@ __kernel void sgemm(const __global float* A,
             a[7] = vload4(0, A + A_off);
             A_off += lda;
 
+            int prefetch_off = A_y_off + pos*2;
             c[0] += a[0].x * b[0] + a[0].y * b[1] + a[0].z * b[2] + a[0].w * b[3];
+            *(a + prefetch_off);
             c[1] += a[1].x * b[0] + a[1].y * b[1] + a[1].z * b[2] + a[1].w * b[3];
+            *(a + prefetch_off + lda);
             c[2] += a[2].x * b[0] + a[2].y * b[1] + a[2].z * b[2] + a[2].w * b[3];
+            *(a + prefetch_off + lda*2);
             c[3] += a[3].x * b[0] + a[3].y * b[1] + a[3].z * b[2] + a[3].w * b[3];
+            *(a + prefetch_off + lda*3);
             c[4] += a[4].x * b[0] + a[4].y * b[1] + a[4].z * b[2] + a[4].w * b[3];
+            *(a + prefetch_off + lda*4);
             c[5] += a[5].x * b[0] + a[5].y * b[1] + a[5].z * b[2] + a[5].w * b[3];
+            *(a + prefetch_off + lda*5);
             c[6] += a[6].x * b[0] + a[6].y * b[1] + a[6].z * b[2] + a[6].w * b[3];
+            *(a + prefetch_off + lda*6);
             c[7] += a[7].x * b[0] + a[7].y * b[1] + a[7].z * b[2] + a[7].w * b[3];
         }
 
